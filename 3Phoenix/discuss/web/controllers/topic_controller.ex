@@ -6,6 +6,8 @@ defmodule Discuss.TopicController do
 
 	alias Discuss.Topic
 
+	plug Discuss.Plugs.RequireAuth when action in [:new, :create, :edit, :update, :delete]
+
 	def index(conn, _params) do
 		topics = Repo.all(Topic)
 		render conn, "index.html", topics: topics
@@ -16,6 +18,7 @@ defmodule Discuss.TopicController do
 		render conn, "new.html", changeset: changeset
 	end
 
+	# I think this guy raises an exception
 	def create(conn, %{"topic" => topic}) do
 		changeset = Topic.changeset(%Topic{}, topic)
 
