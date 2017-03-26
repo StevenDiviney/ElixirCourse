@@ -7,6 +7,8 @@ defmodule Discuss.TopicController do
 	alias Discuss.Topic
 
 	plug Discuss.Plugs.RequireAuth when action in [:new, :create, :edit, :update, :delete]
+	plug :check_topic_owner when action in [:update, :edit, :delete]
+
 
 	def index(conn, _params) do
 		topics = Repo.all(Topic)
@@ -20,7 +22,13 @@ defmodule Discuss.TopicController do
 
 	# I think this guy raises an exception
 	def create(conn, %{"topic" => topic}) do
+		# conn.assigns[:user]
+		# conn.assigns.user, both give access to the user 
 		changeset = Topic.changeset(%Topic{}, topic)
+
+		changeset = conn.assigns.user
+			|> build_assoc(:topics)
+			|> Topic.changeset(topic)
 
 		case Repo.insert(changeset) do
 			{:ok, _topic} -> 
@@ -60,6 +68,21 @@ defmodule Discuss.TopicController do
 		conn 
 		|> put_flash(:info, "Topic Deleted")
 		|> redirect(to: topic_path(conn, :index))
+	end
+
+	# Plugs are called with different args to connection handlers, 
+	# hence why we need to pull out the topic id from the connection manually
+	def check_topic_owner(conn, _params) do
+		%{params: %{"id" => topic_id}} = conn
+
+		if Repo.get(Topic, topic_id).user_id == conn.assigns.user.id do
+			conn
+		else
+			conn
+			|> put_flash(:error, "You cannot edit that")
+			|> redirect(to: topic_path(conn, :index))
+			|> halt()
+		end
 	end
 
 end
